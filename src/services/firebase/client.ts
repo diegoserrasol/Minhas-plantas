@@ -12,20 +12,22 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-function createFirebaseApp(): FirebaseApp {
+// Auth/Firestore/Storage validate the config eagerly at construction time,
+// on both server and client. Until a real Firebase project is configured
+// (NEXT_PUBLIC_FIREBASE_* set), skip construction entirely so the app can
+// still render — every consumer (AuthProvider, repositories) is only ever
+// reached from an authenticated route, so `undefined` here just means
+// "sign-in isn't wired up yet" instead of a hard crash on every page load.
+export const isFirebaseConfigured = Boolean(firebaseConfig.apiKey);
+
+function createFirebaseApp(): FirebaseApp | undefined {
+  if (!isFirebaseConfigured) return undefined;
   return getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 }
 
-// Auth/Firestore/Storage validate config eagerly. Every Firebase-backed
-// hook only runs client-side (inside useEffect), so it's safe to skip
-// construction during SSR/static build — otherwise a build with no
-// Firebase project configured yet (NEXT_PUBLIC_FIREBASE_* unset) would
-// crash on prerender instead of just failing real auth calls in the browser.
-const isBrowser = typeof window !== "undefined";
-
 export const firebaseApp = createFirebaseApp();
-export const auth = (isBrowser ? getAuth(firebaseApp) : undefined) as Auth;
-export const db = (isBrowser ? getFirestore(firebaseApp) : undefined) as Firestore;
-export const storage = (isBrowser
+export const auth = (firebaseApp ? getAuth(firebaseApp) : undefined) as Auth;
+export const db = (firebaseApp ? getFirestore(firebaseApp) : undefined) as Firestore;
+export const storage = (firebaseApp
   ? getStorage(firebaseApp)
   : undefined) as FirebaseStorage;

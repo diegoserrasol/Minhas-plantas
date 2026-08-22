@@ -5,21 +5,33 @@ import {
   signOut,
   type User,
 } from "firebase/auth";
-import { auth } from "./client";
+import { auth, isFirebaseConfigured } from "./client";
 
 const googleProvider = new GoogleAuthProvider();
 
 export async function signInWithGoogle(): Promise<User> {
+  if (!auth) {
+    throw new Error(
+      "Firebase ainda não está configurado. Preencha NEXT_PUBLIC_FIREBASE_* em .env.local."
+    );
+  }
   const result = await signInWithPopup(auth, googleProvider);
   return result.user;
 }
 
 export async function signOutUser(): Promise<void> {
+  if (!auth) return;
   await signOut(auth);
 }
 
 export function onAuthStateChangedListener(
   callback: (user: User | null) => void
 ): () => void {
+  if (!auth) {
+    callback(null);
+    return () => {};
+  }
   return onAuthStateChanged(auth, callback);
 }
+
+export { isFirebaseConfigured };
