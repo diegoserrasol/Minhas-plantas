@@ -1,36 +1,130 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Minhas Plantas
 
-## Getting Started
+Aplicativo web (mobile first) para controlar o manejo de plantas domésticas: plantas, grupos, produtos, aplicações e ciclos de adubação recorrentes, com fotos e timeline de evolução. Especificação completa em [`prd.md`](./prd.md).
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- [Next.js 16](https://nextjs.org) (App Router) + TypeScript
+- [Tailwind CSS v4](https://tailwindcss.com) (tokens definidos em `src/app/globals.css`)
+- [Firebase](https://firebase.google.com): Authentication (Google), Firestore, Storage
+- [React Hook Form](https://react-hook-form.com) + [Zod](https://zod.dev) para formulários
+- [date-fns](https://date-fns.org), [lucide-react](https://lucide.dev), `browser-image-compression`
+- [Vitest](https://vitest.dev) para testes unitários; `@firebase/rules-unit-testing` para as Security Rules
+- Deploy: [Vercel](https://vercel.com)
+
+## Arquitetura
+
+Camadas separadas por responsabilidade:
+
+```
+UI (app/, components/, features/*/components)
+  ↓
+Use Cases (features/*/useCases)
+  ↓
+Domain (domain/ — funções puras, sem I/O)
+  ↓
+Infrastructure (services/firebase/*)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Regra dura: componentes React nunca importam `firebase/firestore` nem repositórios diretamente — só hooks (`src/hooks`) ou use cases. Toda a lógica de cálculo de ciclo de adubação vive em `src/domain/cycles/`, testada isoladamente e sem depender de Firebase.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+src/
+├── app/                  Rotas (App Router): (auth)/login, (app)/{dashboard,plantas,grupos,produtos,aplicacoes,ciclos,cuidados,mais}
+├── components/{ui,feedback,navigation}/   Design system reutilizável
+├── features/{plants,groups,products,applications,cycles,photos,care,auth}/
+│   ├── components/       Componentes específicos do domínio (PlantCard, ApplicationForm...)
+│   └── useCases/         Orquestração: regras de negócio + chamadas a services
+├── domain/                Funções puras (cálculo de ciclo, urgência, timeline...)
+├── services/firebase/     Client SDK, auth, repositórios Firestore, Storage
+├── hooks/                 Ponte React ↔ use cases/services (useAsyncData, usePlants...)
+├── types/                 Entidades de domínio e view-models
+└── lib/                   Utilitários (datas locais, compressão de imagem, cn)
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Modelo de dados (Firestore)
 
-## Learn More
+Subcoleções por usuário — isolamento estrutural, não apenas por campo filtrado:
 
-To learn more about Next.js, take a look at the following resources:
+```
+users/{uid}
+users/{uid}/plants/{plantId}
+users/{uid}/groups/{groupId}
+users/{uid}/products/{productId}
+users/{uid}/careCycles/{cycleId}
+users/{uid}/applications/{applicationId}
+users/{uid}/photos/{photoId}
+recommendations/{recommendationId}   (coleção global, somente leitura)
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Cada documento também guarda `userId` (redundante ao path) para que as Security Rules validem ownership em duas camadas.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Regra de cálculo de ciclo (centralizada em `src/domain/cycles/`, nunca no componente React):
 
-## Deploy on Vercel
+```
+nextApplicationDate = lastApplicationDate + cycleFrequency
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Ao registrar uma aplicação vinculada a um ciclo (`src/features/applications/useCases/registerApplication.ts`), o ciclo é atualizado atomicamente: `lastApplicationDate = applicationDate` e `nextApplicationDate` recalculado.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Uma aplicação em um **grupo** grava `groupId` + um snapshot `affectedPlantIds` no momento do registro, preservando o vínculo mesmo que a composição do grupo mude depois.
+
+### Segurança (Firebase Security Rules)
+
+`firestore.rules` e `storage.rules` garantem que cada usuário só acesse seus próprios dados (`request.auth.uid == uid` do path **e** `resource.data.userId == uid` no documento). Aplicações e fotos são imutáveis após criadas (só `create`/`delete`, nunca `update`) para não haver divergência com o histórico de ciclos. `recommendations` é de leitura pública (autenticada) e escrita bloqueada no cliente.
+
+Testes das regras em `tests/security/firestore.rules.test.ts`, cobrindo explicitamente isolamento entre usuários, criação com `userId` forjado, validação de shape (nome vazio, tipo de produto inválido, XOR planta/grupo) e imutabilidade de aplicações.
+
+## Instalação e execução local
+
+```bash
+npm install
+cp .env.example .env.local   # preencha com as credenciais do seu projeto Firebase
+npm run dev
+```
+
+Abra [http://localhost:3000](http://localhost:3000).
+
+### Configurar o Firebase
+
+1. Crie um projeto em [console.firebase.google.com](https://console.firebase.google.com).
+2. **Authentication** → Sign-in method → ative **Google**.
+3. **Firestore Database** → criar em modo produção (as regras deste repositório cobrem o acesso).
+4. **Storage** → ativar.
+5. Em **Configurações do projeto → Seus apps**, crie um app Web e copie as credenciais para `.env.local` (veja `.env.example`).
+6. Publique as regras: `npx firebase deploy --only firestore:rules,storage:rules` (requer login `npx firebase login` e `.firebaserc` apontando pro seu projeto).
+
+### Variáveis de ambiente
+
+Ver `.env.example` — todas prefixadas com `NEXT_PUBLIC_` porque são a configuração pública do SDK cliente do Firebase (a segurança real está nas Security Rules, não em manter essas chaves em segredo).
+
+## Testes
+
+```bash
+npm test            # testes unitários da camada domain (Vitest)
+npm run test:watch  # modo watch
+npm run test:rules  # Security Rules via Firebase Emulator (requer Java instalado)
+```
+
+## Build e qualidade
+
+```bash
+npm run lint
+npx tsc --noEmit
+npm run build
+```
+
+## Deploy (Vercel)
+
+1. Suba o repositório para o GitHub.
+2. Importe o projeto na [Vercel](https://vercel.com/new).
+3. Configure as mesmas variáveis de `.env.example` em Project Settings → Environment Variables.
+4. Cada Pull Request gera um Preview Deployment; merge em `main` publica em produção.
+
+## Estrutura de commits
+
+O histórico segue commits funcionais por feature (bootstrap → design tokens → Firebase → auth → design system → domain → CRUD de plantas/grupos/produtos → aplicações → ciclos → dashboard → fotos/timeline → segurança...) — cada um buildável isoladamente.
+
+## Fora do escopo do MVP
+
+Por decisão de produto (ver `prd.md`, seção 30): app nativo, notificações push, modo horta, IA para diagnóstico, identificação automática de espécie, previsão climática, sensores IoT, marketplace, rede social, recomendações automáticas complexas. A arquitetura (camada `domain/recommendations`, modelo `Recommendation`) já está preparada para receber uma biblioteca científica real no futuro sem retrabalho estrutural.
