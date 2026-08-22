@@ -1,0 +1,42 @@
+import type {
+  Application,
+  CareCycle,
+  Group,
+  Photo,
+  Plant,
+  Product,
+} from "./entities";
+
+export type CareUrgency = "atrasado" | "hoje" | "proximo";
+
+export interface CareItem {
+  cycle: CareCycle;
+  product: Product;
+  plant?: Plant;
+  group?: Group;
+  urgency: CareUrgency;
+  daysFromToday: number;
+}
+
+export interface DashboardData {
+  overdue: CareItem[];
+  today: CareItem[];
+  upcoming: CareItem[];
+  recentApplications: (Application & { product?: Product; plant?: Plant })[];
+  plantCount: number;
+}
+
+export type TimelineEntryType = "photo" | "application";
+
+export interface TimelineEntry {
+  type: TimelineEntryType;
+  date: Date;
+  photo?: Photo;
+  application?: Application & { product?: Product };
+}
+
+export interface PlantWithCareStatus extends Plant {
+  activeCycle?: CareCycle;
+  product?: Product;
+  urgency?: CareUrgency;
+}
