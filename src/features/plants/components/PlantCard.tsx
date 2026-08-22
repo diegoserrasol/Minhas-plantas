@@ -31,10 +31,10 @@ export function PlantCard({ plant }: { plant: PlantWithCareStatus }) {
           <p className="truncate text-sm text-stone-500">{plant.species}</p>
         )}
 
-        {plant.activeCycle?.lastApplicationDate ? (
+        {plant.lastApplicationDate ? (
           <p className="text-sm font-medium text-stone-700">
-            {plant.product?.name ?? "Adubação"} ·{" "}
-            {formatDaysSince(plant.activeCycle.lastApplicationDate, today)}
+            {plant.lastApplicationProduct?.name ?? "Adubação"} ·{" "}
+            {formatDaysSince(plant.lastApplicationDate, today)}
           </p>
         ) : (
           <p className="text-sm text-stone-400">Sem manejo registrado</p>

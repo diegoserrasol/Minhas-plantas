@@ -41,6 +41,9 @@ export interface TimelineEntry {
 
 export interface PlantWithCareStatus extends Plant {
   activeCycle?: CareCycle;
-  product?: Product;
+  /** Next-manejo urgency badge — only meaningful when activeCycle exists. */
   urgency?: CareUrgency;
+  /** Most recent application for this plant, cycle or not — drives "adubada há X dias". */
+  lastApplicationDate?: Date;
+  lastApplicationProduct?: Product;
 }

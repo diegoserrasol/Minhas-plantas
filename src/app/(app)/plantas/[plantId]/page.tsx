@@ -20,6 +20,7 @@ import { PhotoUploader } from "@/features/photos/components/PhotoUploader";
 import { PlantPhoto } from "@/features/plants/components/PlantPhoto";
 import { PlantTimeline } from "@/features/plants/components/PlantTimeline";
 import { deletePlant } from "@/features/plants/useCases/plantUseCases";
+import { useApplicationsForPlant } from "@/hooks/useApplications";
 import { useAuth } from "@/hooks/useAuth";
 import { useCyclesForPlant } from "@/hooks/useCycles";
 import { usePlant } from "@/hooks/usePlant";
@@ -41,6 +42,8 @@ export default function PlantDetailPage({
   const { data: products } = useProducts();
   const { data: photos, refetch: refetchPhotos } = usePlantPhotos(plantId);
   const { data: timeline, refetch: refetchTimeline } = usePlantTimeline(plantId);
+  const { data: applications, refetch: refetchApplications } =
+    useApplicationsForPlant(plantId);
 
   const [applicationOpen, setApplicationOpen] = useState(false);
   const [cycleOpen, setCycleOpen] = useState(false);
@@ -50,7 +53,16 @@ export default function PlantDetailPage({
 
   const today = todayLocalDate();
   const activeCycle = cycles?.find((c) => c.status === "ativo");
-  const product = products?.find((p) => p.id === activeCycle?.productId);
+
+  // "Última adubação" reflects the most recent application regardless of
+  // whether it's tied to a cycle — a standalone application is a fully
+  // valid flow and shouldn't look like nothing happened.
+  const lastApplication = applications?.length
+    ? [...applications].sort((a, b) => b.date.getTime() - a.date.getTime())[0]
+    : undefined;
+  const lastApplicationProduct = products?.find(
+    (p) => p.id === lastApplication?.productId
+  );
 
   const selectedPhotos = useMemo(() => {
     if (selected.length !== 2 || !photos) return null;
@@ -73,6 +85,7 @@ export default function PlantDetailPage({
     refetchCycles();
     refetchPhotos();
     refetchTimeline();
+    refetchApplications();
   }
 
   async function handleDelete() {
@@ -126,11 +139,13 @@ export default function PlantDetailPage({
           <p className="text-xs font-medium uppercase tracking-wide text-moss-600">
             Última adubação
           </p>
-          {activeCycle?.lastApplicationDate ? (
+          {lastApplication ? (
             <>
-              <p className="mt-1 font-medium text-stone-900">{product?.name}</p>
+              <p className="mt-1 font-medium text-stone-900">
+                {lastApplicationProduct?.name}
+              </p>
               <p className="text-sm text-stone-600">
-                {formatDaysSince(activeCycle.lastApplicationDate, today)}
+                {formatDaysSince(lastApplication.date, today)}
               </p>
             </>
           ) : (
