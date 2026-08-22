@@ -1,6 +1,7 @@
 import {
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -11,6 +12,23 @@ import {
 } from "firebase/firestore";
 import { db } from "../client";
 import { makeConverter } from "../converters";
+
+/**
+ * updateDoc bypasses the converter (toFirestore never runs), and rejects
+ * `undefined` outright. Unlike on create, silently dropping the key here
+ * would leave the field's old value in place forever — so `undefined`
+ * means "clear this field" and becomes Firestore's deleteField() sentinel.
+ */
+function undefinedToDeleteField(
+  data: Record<string, unknown>
+): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(data).map(([key, val]) => [
+      key,
+      val === undefined ? deleteField() : val,
+    ])
+  );
+}
 
 /**
  * Shared CRUD surface for entities stored at `users/{uid}/{collectionName}`.
@@ -61,7 +79,10 @@ export function createUserSubcollectionRepository<
     id: string,
     data: Partial<Omit<T, "id" | "userId">>
   ): Promise<void> {
-    await updateDoc(doc(colRef(uid), id), data as UpdateData<T>);
+    await updateDoc(
+      doc(colRef(uid), id),
+      undefinedToDeleteField(data as Record<string, unknown>) as UpdateData<T>
+    );
   }
 
   async function remove(uid: string, id: string): Promise<void> {

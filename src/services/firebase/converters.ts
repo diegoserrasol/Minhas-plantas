@@ -16,6 +16,27 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   );
 }
 
+/**
+ * Recursively drops `undefined` values from a plain object/array.
+ * Firestore's `setDoc`/`updateDoc` reject `undefined` outright (unlike
+ * `null`), and optional entity fields (species, notes, groupId...) are
+ * routinely `undefined` when left blank in a form. `updateDoc` bypasses
+ * the custom converter entirely, so every write path — `create` via
+ * `toFirestore` below, and the repository's raw `updateDoc` calls — must
+ * apply this independently.
+ */
+export function stripUndefinedDeep(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stripUndefinedDeep);
+  if (isPlainObject(value)) {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([, val]) => val !== undefined)
+        .map(([key, val]) => [key, stripUndefinedDeep(val)])
+    );
+  }
+  return value;
+}
+
 /** Recursively converts every `Date` in a plain object/array into a Firestore `Timestamp`. */
 function datesToTimestamps(value: unknown): unknown {
   if (value instanceof Date) return Timestamp.fromDate(value);
@@ -52,7 +73,7 @@ export function makeConverter<
     toFirestore(entity: T): DocumentData {
       const rest: Partial<T> = { ...entity };
       delete rest.id;
-      return datesToTimestamps(rest) as DocumentData;
+      return stripUndefinedDeep(datesToTimestamps(rest)) as DocumentData;
     },
     fromFirestore(
       snapshot: QueryDocumentSnapshot,
