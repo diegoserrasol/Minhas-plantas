@@ -6,10 +6,11 @@ import { cn } from "@/lib/utils";
 
 export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
+  error?: string;
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className, label, id, children, ...props }, ref) => {
+  ({ className, label, error, id, children, ...props }, ref) => {
     const selectId = id ?? props.name;
     return (
       <div className="flex flex-col gap-1.5">
@@ -24,8 +25,10 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             id={selectId}
             className={cn(
               "h-11 w-full appearance-none rounded-md border border-stone-300 bg-stone-50 px-3.5 pr-10 text-base text-stone-900 transition-colors focus:border-moss-500 focus:outline-none focus:ring-2 focus:ring-moss-500/30",
+              error && "border-status-overdue focus:ring-status-overdue/30",
               className
             )}
+            aria-invalid={Boolean(error)}
             {...props}
           >
             {children}
@@ -35,6 +38,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             aria-hidden
           />
         </div>
+        {error && <p className="text-sm text-status-overdue">{error}</p>}
       </div>
     );
   }
