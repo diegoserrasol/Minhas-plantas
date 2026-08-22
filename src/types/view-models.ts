@@ -22,7 +22,11 @@ export interface DashboardData {
   overdue: CareItem[];
   today: CareItem[];
   upcoming: CareItem[];
-  recentApplications: (Application & { product?: Product; plant?: Plant })[];
+  recentApplications: (Application & {
+    product?: Product;
+    plant?: Plant;
+    group?: Group;
+  })[];
   plantCount: number;
 }
 

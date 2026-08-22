@@ -151,7 +151,7 @@ export default function DashboardPage() {
                     key={application.id}
                     application={application}
                     productName={application.product?.name}
-                    targetName={application.plant?.name}
+                    targetName={application.plant?.name ?? application.group?.name}
                   />
                 ))}
               </div>

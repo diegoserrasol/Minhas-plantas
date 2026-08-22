@@ -59,6 +59,9 @@ export async function getDashboardData(
       plant: application.plantId
         ? plantsById.get(application.plantId)
         : undefined,
+      group: application.groupId
+        ? groupsById.get(application.groupId)
+        : undefined,
     })),
     plantCount: plants.length,
   };
