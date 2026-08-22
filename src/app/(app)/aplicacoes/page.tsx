@@ -22,7 +22,12 @@ export default function ApplicationsHistoryPage() {
   const filtered = useMemo(() => {
     if (!data) return [];
     return data.filter((application) => {
-      if (plantFilter && application.plantId !== plantFilter) return false;
+      if (
+        plantFilter &&
+        application.plantId !== plantFilter &&
+        !application.affectedPlantIds?.includes(plantFilter)
+      )
+        return false;
       if (productFilter && application.productId !== productFilter) return false;
       return true;
     });
