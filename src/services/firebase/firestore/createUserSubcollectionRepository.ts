@@ -28,11 +28,22 @@ export function createUserSubcollectionRepository<
     );
   }
 
-  async function create(uid: string, data: Omit<T, "id">): Promise<T> {
-    const ref = doc(colRef(uid));
+  async function create(
+    uid: string,
+    data: Omit<T, "id">,
+    explicitId?: string
+  ): Promise<T> {
+    const ref = explicitId ? doc(colRef(uid), explicitId) : doc(colRef(uid));
     const entity = { ...data, id: ref.id } as T;
     await setDoc(ref, entity);
     return entity;
+  }
+
+  /** Reserves an id for a document that doesn't exist yet — e.g. so an
+   * uploaded photo's storage path can share the id before the entity
+   * itself is created. */
+  function newId(uid: string): string {
+    return doc(colRef(uid)).id;
   }
 
   async function getById(uid: string, id: string): Promise<T | null> {
@@ -57,5 +68,5 @@ export function createUserSubcollectionRepository<
     await deleteDoc(doc(colRef(uid), id));
   }
 
-  return { colRef, create, getById, list, update, remove };
+  return { colRef, create, newId, getById, list, update, remove };
 }
