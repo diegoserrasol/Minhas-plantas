@@ -5,7 +5,15 @@ import {
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
 import { readFileSync } from "node:fs";
-import { deleteDoc, doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+} from "firebase/firestore";
 import { afterAll, afterEach, beforeAll, describe, it } from "vitest";
 
 const PROJECT_ID = "minhas-plantas-rules-test";
@@ -60,6 +68,15 @@ describe("Firestore Security Rules — isolamento entre usuários", () => {
     await seedPlant(OWNER_UID, "plant-1");
     const asA = testEnv.authenticatedContext(OWNER_UID).firestore();
     await assertSucceeds(getDoc(doc(asA, plantPath(OWNER_UID, "plant-1"))));
+  });
+
+  it("usuário A consegue listar suas plantas sem filtro (regressão: list sem where + regra em resource.data quebra)", async () => {
+    await seedPlant(OWNER_UID, "plant-1");
+    await seedPlant(OWNER_UID, "plant-2");
+    const asA = testEnv.authenticatedContext(OWNER_UID).firestore();
+    await assertSucceeds(
+      getDocs(collection(asA, `users/${OWNER_UID}/plants`))
+    );
   });
 
   it("usuário A não consegue atualizar plantas de B", async () => {

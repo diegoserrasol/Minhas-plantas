@@ -38,6 +38,7 @@ export function useAsyncData<T>(
         if (!cancelled) setAsyncState({ data, loading: false, error: null });
       })
       .catch((error: Error) => {
+        console.error(error);
         if (!cancelled) setAsyncState({ data: null, loading: false, error });
       });
     return () => {

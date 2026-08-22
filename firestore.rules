@@ -33,46 +33,45 @@ service cloud.firestore {
       allow create: if isOwner(uid);
       allow delete: if false;
 
+      // Read/delete rely only on the path-based `isOwner(uid)` check —
+      // NOT on resource.data — because Firestore rejects any unfiltered
+      // `list` query whose rule depends on resource.data unless the
+      // query itself is constrained by a matching where() clause. Our
+      // isolation is already structural (subcollection under users/{uid}),
+      // so resource.data.userId is only meaningful — and only checked —
+      // on writes, where it can't break listing.
       match /plants/{plantId} {
-        allow read, delete: if isOwner(uid) && resource.data.userId == uid;
+        allow read, delete: if isOwner(uid);
         allow create: if isOwner(uid) && ownerMatchesBody(uid) && hasNonEmptyName();
-        allow update: if isOwner(uid)
-          && resource.data.userId == uid
-          && request.resource.data.userId == uid;
+        allow update: if isOwner(uid) && request.resource.data.userId == uid;
       }
 
       match /groups/{groupId} {
-        allow read, delete: if isOwner(uid) && resource.data.userId == uid;
+        allow read, delete: if isOwner(uid);
         allow create: if isOwner(uid) && ownerMatchesBody(uid) && hasNonEmptyName();
-        allow update: if isOwner(uid)
-          && resource.data.userId == uid
-          && request.resource.data.userId == uid;
+        allow update: if isOwner(uid) && request.resource.data.userId == uid;
       }
 
       match /products/{productId} {
-        allow read, delete: if isOwner(uid) && resource.data.userId == uid;
+        allow read, delete: if isOwner(uid);
         allow create: if isOwner(uid) && ownerMatchesBody(uid) && hasNonEmptyName()
           && request.resource.data.type in ['mineral', 'biologico'];
-        allow update: if isOwner(uid)
-          && resource.data.userId == uid
-          && request.resource.data.userId == uid
+        allow update: if isOwner(uid) && request.resource.data.userId == uid
           && (!('type' in request.resource.data) || request.resource.data.type in ['mineral', 'biologico']);
       }
 
       match /careCycles/{cycleId} {
-        allow read, delete: if isOwner(uid) && resource.data.userId == uid;
+        allow read, delete: if isOwner(uid);
         allow create: if isOwner(uid) && ownerMatchesBody(uid)
           && request.resource.data.frequencyValue is number
           && request.resource.data.frequencyValue > 0
           && request.resource.data.frequencyUnit in ['dias', 'semanas', 'meses']
           && exactlyOneTarget();
-        allow update: if isOwner(uid)
-          && resource.data.userId == uid
-          && request.resource.data.userId == uid;
+        allow update: if isOwner(uid) && request.resource.data.userId == uid;
       }
 
       match /applications/{applicationId} {
-        allow read, delete: if isOwner(uid) && resource.data.userId == uid;
+        allow read, delete: if isOwner(uid);
         allow create: if isOwner(uid) && ownerMatchesBody(uid)
           && request.resource.data.productId is string
           && exactlyOneTarget();
@@ -82,7 +81,7 @@ service cloud.firestore {
       }
 
       match /photos/{photoId} {
-        allow read, delete: if isOwner(uid) && resource.data.userId == uid;
+        allow read, delete: if isOwner(uid);
         allow create: if isOwner(uid) && ownerMatchesBody(uid)
           && request.resource.data.plantId is string
           && request.resource.data.storagePath is string;
