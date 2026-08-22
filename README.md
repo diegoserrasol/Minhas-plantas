@@ -6,7 +6,7 @@ Aplicativo web (mobile first) para controlar o manejo de plantas domésticas: pl
 
 - [Next.js 16](https://nextjs.org) (App Router) + TypeScript
 - [Tailwind CSS v4](https://tailwindcss.com) (tokens definidos em `src/app/globals.css`)
-- [Firebase](https://firebase.google.com): Authentication (Google), Firestore, Storage
+- [Firebase](https://firebase.google.com): Authentication (Google), Firestore (fotos salvas como base64 inline, sem Storage/plano Blaze)
 - [React Hook Form](https://react-hook-form.com) + [Zod](https://zod.dev) para formulários
 - [date-fns](https://date-fns.org), [lucide-react](https://lucide.dev), `browser-image-compression`
 - [Vitest](https://vitest.dev) para testes unitários; `@firebase/rules-unit-testing` para as Security Rules
@@ -36,7 +36,7 @@ src/
 │   ├── components/       Componentes específicos do domínio (PlantCard, ApplicationForm...)
 │   └── useCases/         Orquestração: regras de negócio + chamadas a services
 ├── domain/                Funções puras (cálculo de ciclo, urgência, timeline...)
-├── services/firebase/     Client SDK, auth, repositórios Firestore, Storage
+├── services/firebase/     Client SDK, auth, repositórios Firestore
 ├── hooks/                 Ponte React ↔ use cases/services (useAsyncData, usePlants...)
 ├── types/                 Entidades de domínio e view-models
 └── lib/                   Utilitários (datas locais, compressão de imagem, cn)
@@ -69,9 +69,13 @@ Ao registrar uma aplicação vinculada a um ciclo (`src/features/applications/us
 
 Uma aplicação em um **grupo** grava `groupId` + um snapshot `affectedPlantIds` no momento do registro, preservando o vínculo mesmo que a composição do grupo mude depois.
 
+### Fotos
+
+Sem Firebase Storage (evita exigir plano Blaze). Cada foto é comprimida no cliente (`browser-image-compression`, alvo ~0.5MB/1280px) e convertida para base64 (`src/lib/imageCompression.ts::fileToBase64`), salva inline no campo `url` do documento `Photo` — cada foto já é um documento próprio na coleção `photos`, então o limite de 1MiB por documento do Firestore nunca é compartilhado entre fotos. As regras rejeitam qualquer `url`/`coverPhotoUrl` acima de ~900KB como defesa contra um cliente que pule a compressão.
+
 ### Segurança (Firebase Security Rules)
 
-`firestore.rules` e `storage.rules` garantem que cada usuário só acesse seus próprios dados (`request.auth.uid == uid` do path **e** `resource.data.userId == uid` no documento). Aplicações e fotos são imutáveis após criadas (só `create`/`delete`, nunca `update`) para não haver divergência com o histórico de ciclos. `recommendations` é de leitura pública (autenticada) e escrita bloqueada no cliente.
+`firestore.rules` garante que cada usuário só acesse seus próprios dados. Leitura/exclusão dependem só do `uid` no **path** (`request.auth.uid == uid`) — nunca de `resource.data`, porque o Firestore rejeita qualquer `list()` sem `where()` correspondente quando a regra depende de dado do documento (ver comentário no próprio arquivo de regras). Escrita (`create`/`update`) valida `resource.data.userId == uid` normalmente, já que isso não afeta listagem. Aplicações e fotos são imutáveis após criadas (só `create`/`delete`, nunca `update`) para não haver divergência com o histórico de ciclos. `recommendations` é de leitura pública (autenticada) e escrita bloqueada no cliente.
 
 Testes das regras em `tests/security/firestore.rules.test.ts`, cobrindo explicitamente isolamento entre usuários, criação com `userId` forjado, validação de shape (nome vazio, tipo de produto inválido, XOR planta/grupo) e imutabilidade de aplicações.
 
@@ -90,9 +94,8 @@ Abra [http://localhost:3000](http://localhost:3000).
 1. Crie um projeto em [console.firebase.google.com](https://console.firebase.google.com).
 2. **Authentication** → Sign-in method → ative **Google**.
 3. **Firestore Database** → criar em modo produção (as regras deste repositório cobrem o acesso).
-4. **Storage** → ativar.
-5. Em **Configurações do projeto → Seus apps**, crie um app Web e copie as credenciais para `.env.local` (veja `.env.example`).
-6. Publique as regras: `npx firebase deploy --only firestore:rules,storage:rules` (requer login `npx firebase login` e `.firebaserc` apontando pro seu projeto).
+4. Em **Configurações do projeto → Seus apps**, crie um app Web e copie as credenciais para `.env.local` (veja `.env.example`).
+5. Publique as regras: `npx firebase deploy --only firestore:rules,firestore:indexes` (requer login `npx firebase login` e `.firebaserc` apontando pro seu projeto).
 
 ### Variáveis de ambiente
 

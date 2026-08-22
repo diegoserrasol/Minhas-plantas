@@ -1,38 +1,28 @@
-import { compressPlantPhoto } from "@/lib/imageCompression";
+import { compressPlantPhoto, fileToBase64 } from "@/lib/imageCompression";
+import { cyclesRepository } from "@/services/firebase/firestore/cyclesRepository";
+import { photosRepository } from "@/services/firebase/firestore/photosRepository";
 import { plantsRepository } from "@/services/firebase/firestore/plantsRepository";
-import { uploadPlantPhoto } from "@/services/firebase/storage/photoStorage";
 import type { Plant } from "@/types/entities";
 
 export type CreatePlantInput = Omit<
   Plant,
-  "id" | "createdAt" | "updatedAt" | "coverPhotoUrl" | "coverPhotoStoragePath"
+  "id" | "createdAt" | "updatedAt" | "coverPhotoUrl"
 > & { coverPhotoFile?: File };
 
 export async function createPlant(input: CreatePlantInput): Promise<Plant> {
   const { coverPhotoFile, ...rest } = input;
   const now = new Date();
-  const plantId = plantsRepository.newId(input.userId);
 
-  let coverPhotoUrl: string | undefined;
-  let coverPhotoStoragePath: string | undefined;
-  if (coverPhotoFile) {
-    const compressed = await compressPlantPhoto(coverPhotoFile);
-    const uploaded = await uploadPlantPhoto(compressed, input.userId, plantId);
-    coverPhotoUrl = uploaded.url;
-    coverPhotoStoragePath = uploaded.storagePath;
-  }
+  const coverPhotoUrl = coverPhotoFile
+    ? await fileToBase64(await compressPlantPhoto(coverPhotoFile))
+    : undefined;
 
-  return plantsRepository.create(
-    input.userId,
-    {
-      ...rest,
-      coverPhotoUrl,
-      coverPhotoStoragePath,
-      createdAt: now,
-      updatedAt: now,
-    },
-    plantId
-  );
+  return plantsRepository.create(input.userId, {
+    ...rest,
+    coverPhotoUrl,
+    createdAt: now,
+    updatedAt: now,
+  });
 }
 
 export async function updatePlant(
@@ -47,6 +37,19 @@ export async function updatePlant(
 }
 
 export async function deletePlant(userId: string, plantId: string): Promise<void> {
+  const [photos, cycles] = await Promise.all([
+    photosRepository.listByPlantId(userId, plantId),
+    cyclesRepository.listByPlantId(userId, plantId),
+  ]);
+  await Promise.all([
+    ...photos.map((photo) => photosRepository.remove(userId, photo.id)),
+    // Applications keep the plant history, but a cycle pointing at a
+    // deleted plant would otherwise show up forever as a blank-name
+    // card on the dashboard.
+    ...cycles.map((cycle) =>
+      cyclesRepository.update(userId, cycle.id, { status: "excluido" })
+    ),
+  ]);
   await plantsRepository.remove(userId, plantId);
 }
 

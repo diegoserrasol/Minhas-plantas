@@ -1,4 +1,4 @@
-import { deleteField } from "firebase/firestore";
+import { cyclesRepository } from "@/services/firebase/firestore/cyclesRepository";
 import { groupsRepository } from "@/services/firebase/firestore/groupsRepository";
 import { plantsRepository } from "@/services/firebase/firestore/plantsRepository";
 import type { Group, Plant } from "@/types/entities";
@@ -26,6 +26,12 @@ export async function updateGroup(
 }
 
 export async function deleteGroup(userId: string, groupId: string): Promise<void> {
+  const cycles = await cyclesRepository.listByGroupId(userId, groupId);
+  await Promise.all(
+    cycles.map((cycle) =>
+      cyclesRepository.update(userId, cycle.id, { status: "excluido" })
+    )
+  );
   await groupsRepository.remove(userId, groupId);
 }
 
@@ -59,7 +65,5 @@ export async function removePlantFromGroup(
   userId: string,
   plantId: string
 ): Promise<void> {
-  await plantsRepository.update(userId, plantId, {
-    groupId: deleteField() as unknown as undefined,
-  });
+  await plantsRepository.update(userId, plantId, { groupId: undefined });
 }

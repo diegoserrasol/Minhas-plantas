@@ -20,6 +20,13 @@ service cloud.firestore {
         && request.resource.data.name.size() > 0;
     }
 
+    // Cover photos are base64 data URIs inline on the document — same
+    // 1 MiB Firestore document cap as standalone photos applies here.
+    function hasValidCoverPhoto() {
+      return !('coverPhotoUrl' in request.resource.data)
+        || request.resource.data.coverPhotoUrl.size() < 900000;
+    }
+
     function exactlyOneTarget() {
       let hasPlant = ('plantId' in request.resource.data)
         && request.resource.data.plantId is string;
@@ -42,14 +49,18 @@ service cloud.firestore {
       // on writes, where it can't break listing.
       match /plants/{plantId} {
         allow read, delete: if isOwner(uid);
-        allow create: if isOwner(uid) && ownerMatchesBody(uid) && hasNonEmptyName();
-        allow update: if isOwner(uid) && request.resource.data.userId == uid;
+        allow create: if isOwner(uid) && ownerMatchesBody(uid) && hasNonEmptyName()
+          && hasValidCoverPhoto();
+        allow update: if isOwner(uid) && request.resource.data.userId == uid
+          && hasValidCoverPhoto();
       }
 
       match /groups/{groupId} {
         allow read, delete: if isOwner(uid);
-        allow create: if isOwner(uid) && ownerMatchesBody(uid) && hasNonEmptyName();
-        allow update: if isOwner(uid) && request.resource.data.userId == uid;
+        allow create: if isOwner(uid) && ownerMatchesBody(uid) && hasNonEmptyName()
+          && hasValidCoverPhoto();
+        allow update: if isOwner(uid) && request.resource.data.userId == uid
+          && hasValidCoverPhoto();
       }
 
       match /products/{productId} {
@@ -82,9 +93,13 @@ service cloud.firestore {
 
       match /photos/{photoId} {
         allow read, delete: if isOwner(uid);
+        // Photos are base64 data URIs inline in the document (no Storage
+        // bucket) — cap url length so a buggy client can't skip
+        // compression and blow past Firestore's 1 MiB document limit.
         allow create: if isOwner(uid) && ownerMatchesBody(uid)
           && request.resource.data.plantId is string
-          && request.resource.data.storagePath is string;
+          && request.resource.data.url is string
+          && request.resource.data.url.size() < 900000;
         allow update: if false;
       }
     }

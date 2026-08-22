@@ -15,7 +15,6 @@ export interface Plant {
   groupId?: Id;
   location?: string;
   coverPhotoUrl?: string;
-  coverPhotoStoragePath?: string;
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -27,7 +26,6 @@ export interface Group {
   name: string;
   description?: string;
   coverPhotoUrl?: string;
-  coverPhotoStoragePath?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -86,7 +84,7 @@ export interface Photo {
   id: Id;
   userId: Id;
   plantId: Id;
-  storagePath: string;
+  /** Base64 data URI — stored inline in Firestore, no external storage. */
   url: string;
   note?: string;
   createdAt: Date;
