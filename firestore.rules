@@ -1,0 +1,98 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function ownerMatchesBody(uid) {
+      return request.resource.data.userId == uid;
+    }
+
+    function hasNonEmptyName() {
+      return request.resource.data.name is string
+        && request.resource.data.name.size() > 0;
+    }
+
+    function exactlyOneTarget() {
+      let hasPlant = ('plantId' in request.resource.data)
+        && request.resource.data.plantId is string;
+      let hasGroup = ('groupId' in request.resource.data)
+        && request.resource.data.groupId is string;
+      return hasPlant != hasGroup;
+    }
+
+    match /users/{uid} {
+      allow read, update: if isOwner(uid);
+      allow create: if isOwner(uid);
+      allow delete: if false;
+
+      match /plants/{plantId} {
+        allow read, delete: if isOwner(uid) && resource.data.userId == uid;
+        allow create: if isOwner(uid) && ownerMatchesBody(uid) && hasNonEmptyName();
+        allow update: if isOwner(uid)
+          && resource.data.userId == uid
+          && request.resource.data.userId == uid;
+      }
+
+      match /groups/{groupId} {
+        allow read, delete: if isOwner(uid) && resource.data.userId == uid;
+        allow create: if isOwner(uid) && ownerMatchesBody(uid) && hasNonEmptyName();
+        allow update: if isOwner(uid)
+          && resource.data.userId == uid
+          && request.resource.data.userId == uid;
+      }
+
+      match /products/{productId} {
+        allow read, delete: if isOwner(uid) && resource.data.userId == uid;
+        allow create: if isOwner(uid) && ownerMatchesBody(uid) && hasNonEmptyName()
+          && request.resource.data.type in ['mineral', 'biologico'];
+        allow update: if isOwner(uid)
+          && resource.data.userId == uid
+          && request.resource.data.userId == uid
+          && (!('type' in request.resource.data) || request.resource.data.type in ['mineral', 'biologico']);
+      }
+
+      match /careCycles/{cycleId} {
+        allow read, delete: if isOwner(uid) && resource.data.userId == uid;
+        allow create: if isOwner(uid) && ownerMatchesBody(uid)
+          && request.resource.data.frequencyValue is number
+          && request.resource.data.frequencyValue > 0
+          && request.resource.data.frequencyUnit in ['dias', 'semanas', 'meses']
+          && exactlyOneTarget();
+        allow update: if isOwner(uid)
+          && resource.data.userId == uid
+          && request.resource.data.userId == uid;
+      }
+
+      match /applications/{applicationId} {
+        allow read, delete: if isOwner(uid) && resource.data.userId == uid;
+        allow create: if isOwner(uid) && ownerMatchesBody(uid)
+          && request.resource.data.productId is string
+          && exactlyOneTarget();
+        // Applications are immutable once registered — the cycle-rollover
+        // rule (PRD §20) depends on the history staying exactly as recorded.
+        allow update: if false;
+      }
+
+      match /photos/{photoId} {
+        allow read, delete: if isOwner(uid) && resource.data.userId == uid;
+        allow create: if isOwner(uid) && ownerMatchesBody(uid)
+          && request.resource.data.plantId is string
+          && request.resource.data.storagePath is string;
+        allow update: if false;
+      }
+    }
+
+    match /recommendations/{recommendationId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+  }
+}
