@@ -22,7 +22,8 @@ export default function LoginPage() {
     setSigningIn(true);
     try {
       await signInWithGoogle();
-    } catch {
+    } catch (err) {
+      console.error(err);
       setError("Não foi possível entrar. Tente novamente.");
     } finally {
       setSigningIn(false);
