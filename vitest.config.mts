@@ -4,7 +4,9 @@ import path from "node:path";
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
+    // Security-rule tests need the Firestore emulator running, so they're
+    // excluded here and only ever run explicitly via `npm run test:rules`.
+    include: ["src/**/*.test.ts"],
   },
   resolve: {
     alias: {
