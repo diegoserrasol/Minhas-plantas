@@ -65,6 +65,7 @@ export default function CuidadosPage() {
                 ? { type: "plant", id: activeItem.plant.id }
                 : { type: "group", id: activeItem.group!.id }
             }
+            initialProductId={activeItem.product.id}
             onSuccess={() => {
               setActiveItem(null);
               refetch();

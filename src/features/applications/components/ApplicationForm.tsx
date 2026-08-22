@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useToast } from "@/components/feedback/ToastProvider";
@@ -46,10 +46,15 @@ type FormValues = z.infer<typeof schema>;
 
 export interface ApplicationFormProps {
   initialTarget?: { type: "plant" | "group"; id: string };
+  initialProductId?: string;
   onSuccess?: () => void;
 }
 
-export function ApplicationForm({ initialTarget, onSuccess }: ApplicationFormProps) {
+export function ApplicationForm({
+  initialTarget,
+  initialProductId,
+  onSuccess,
+}: ApplicationFormProps) {
   const { user } = useAuth();
   const { data: plants } = usePlants();
   const { data: groups } = useGroups();
@@ -70,7 +75,7 @@ export function ApplicationForm({ initialTarget, onSuccess }: ApplicationFormPro
     defaultValues: {
       targetType: initialTarget?.type ?? "plant",
       targetId: initialTarget?.id ?? "",
-      productId: "",
+      productId: initialProductId ?? "",
       date: toDateInputValue(todayLocalDate()),
       method: "solo",
     },
@@ -79,6 +84,18 @@ export function ApplicationForm({ initialTarget, onSuccess }: ApplicationFormPro
   const targetType = watch("targetType");
   const targetId = watch("targetId");
   const productId = watch("productId");
+
+  // The product <select>'s options render only once useProducts() resolves
+  // — after that, react-hook-form's mount-time defaultValues can no longer
+  // retroactively select an option that didn't exist in the DOM yet, so
+  // re-apply once the data is in. (targetId has no such issue: when
+  // initialTarget is set, its <select> is hidden entirely, so there's no
+  // DOM option list to race against.)
+  useEffect(() => {
+    if (initialProductId && products?.some((p) => p.id === initialProductId)) {
+      setValue("productId", initialProductId);
+    }
+  }, [initialProductId, products, setValue]);
 
   const { data: plantCycles } = useCyclesForPlant(
     targetType === "plant" ? targetId : ""
