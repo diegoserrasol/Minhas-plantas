@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+:root {
+  --background: #faf9f6;
+  --foreground: #2e2c26;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-fraunces), ui-serif, Georgia, serif;
+
+  /* Verde identidade — escala própria, não o "green" genérico do Tailwind */
+  --color-moss-50: #f3f6f1;
+  --color-moss-100: #e4ebe0;
+  --color-moss-200: #c9d8c1;
+  --color-moss-300: #a8c299;
+  --color-moss-400: #84a96f;
+  --color-moss-500: #5f8a4c;
+  --color-moss-600: #4b6f3c;
+  --color-moss-700: #3a5730;
+  --color-moss-800: #2c4225;
+  --color-moss-900: #1f301a;
+
+  /* Neutros quentes — base de texto e superfícies */
+  --color-stone-50: #faf9f6;
+  --color-stone-100: #f3f1ec;
+  --color-stone-200: #e7e3da;
+  --color-stone-300: #d3cdc0;
+  --color-stone-400: #a8a092;
+  --color-stone-500: #7c7566;
+  --color-stone-600: #5c5648;
+  --color-stone-700: #423f36;
+  --color-stone-800: #2e2c26;
+  --color-stone-900: #1c1b17;
+
+  /* Tons naturais secundários */
+  --color-clay-400: #d98c5f;
+  --color-clay-500: #c06b3a;
+  --color-clay-600: #a2542a;
+  --color-sand-300: #e8d9b5;
+  --color-sand-400: #d9c08a;
+
+  /* Estados de urgência de manejo */
+  --color-status-overdue: #c0523a;
+  --color-status-today: #d98c3a;
+  --color-status-upcoming: #5f8a4c;
+
+  --radius-md: 0.75rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.75rem;
+
+  --shadow-soft: 0 2px 8px -2px rgb(28 27 23 / 0.08);
+  --shadow-card: 0 4px 16px -4px rgb(28 27 23 / 0.1);
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
