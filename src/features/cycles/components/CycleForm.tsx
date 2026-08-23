@@ -14,6 +14,7 @@ import { Select } from "@/components/ui/Select";
 import { createCycle } from "@/features/cycles/useCases/cycleUseCases";
 import { RecommendationPicker } from "@/features/cycles/components/RecommendationPicker";
 import { useAuth } from "@/hooks/useAuth";
+import { describeError } from "@/lib/errors";
 import { useGroups } from "@/hooks/useGroups";
 import { usePlants } from "@/hooks/usePlants";
 import { useProducts } from "@/hooks/useProducts";
@@ -121,6 +122,8 @@ export function CycleForm({ initialTarget }: CycleFormProps) {
       });
       showToast("Ciclo criado 🌱");
       router.push("/ciclos");
+    } catch (error) {
+      showToast(describeError(error, "Não foi possível criar o ciclo."), "error");
     } finally {
       setSubmitting(false);
     }

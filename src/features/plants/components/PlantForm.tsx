@@ -1,21 +1,21 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Camera } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { PhotoPicker } from "@/components/ui/PhotoPicker";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { useToast } from "@/components/feedback/ToastProvider";
 import { createPlant, updatePlant } from "@/features/plants/useCases/plantUseCases";
 import { useAuth } from "@/hooks/useAuth";
 import { useGroups } from "@/hooks/useGroups";
+import { describeError } from "@/lib/errors";
 import type { Plant } from "@/types/entities";
-import { PlantPhoto } from "./PlantPhoto";
 
 const schema = z.object({
   name: z.string().min(1, "Dê um nome para a planta"),
@@ -32,9 +32,7 @@ export function PlantForm({ plant }: { plant?: Plant }) {
   const { data: groups } = useGroups();
   const { showToast } = useToast();
   const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | undefined>(
+  const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | undefined>(
     plant?.coverPhotoUrl
   );
   const [submitting, setSubmitting] = useState(false);
@@ -54,11 +52,6 @@ export function PlantForm({ plant }: { plant?: Plant }) {
     },
   });
 
-  function handlePhotoChange(file: File | null) {
-    setPhotoFile(file);
-    setPhotoPreview(file ? URL.createObjectURL(file) : plant?.coverPhotoUrl);
-  }
-
   async function onSubmit(values: FormValues) {
     if (!user) return;
     setSubmitting(true);
@@ -69,6 +62,7 @@ export function PlantForm({ plant }: { plant?: Plant }) {
         groupId: values.groupId || undefined,
         location: values.location || undefined,
         notes: values.notes || undefined,
+        coverPhotoUrl,
       };
 
       if (plant) {
@@ -76,14 +70,12 @@ export function PlantForm({ plant }: { plant?: Plant }) {
         showToast("Planta atualizada 🌿");
         router.push(`/plantas/${plant.id}`);
       } else {
-        const created = await createPlant({
-          userId: user.uid,
-          ...cleaned,
-          coverPhotoFile: photoFile ?? undefined,
-        });
+        const created = await createPlant({ userId: user.uid, ...cleaned });
         showToast("Planta adicionada 🌱");
         router.push(`/plantas/${created.id}`);
       }
+    } catch (error) {
+      showToast(describeError(error, "Não foi possível salvar a planta."), "error");
     } finally {
       setSubmitting(false);
     }
@@ -91,27 +83,12 @@ export function PlantForm({ plant }: { plant?: Plant }) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
-      <div className="flex flex-col items-center gap-3">
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          className="relative flex size-28 items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-stone-300"
-        >
-          <PlantPhoto src={photoPreview} alt="Foto da planta" className="size-full" />
-          <span className="absolute bottom-1 right-1 flex size-7 items-center justify-center rounded-full bg-moss-600 text-stone-50">
-            <Camera className="size-3.5" aria-hidden />
-          </span>
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          onChange={(e) => handlePhotoChange(e.target.files?.[0] ?? null)}
-        />
-        <p className="text-xs text-stone-400">Foto (opcional)</p>
-      </div>
+      <PhotoPicker
+        value={coverPhotoUrl}
+        onChange={setCoverPhotoUrl}
+        label="Foto de capa (opcional)"
+        disabled={submitting}
+      />
 
       <Input
         label="Nome"

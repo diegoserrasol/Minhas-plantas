@@ -1,20 +1,21 @@
-import { compressPlantPhoto, fileToBase64 } from "@/lib/imageCompression";
 import { photosRepository } from "@/services/firebase/firestore/photosRepository";
 import type { Photo } from "@/types/entities";
 
+/**
+ * `dataUrl` is already a compressed JPEG data URI produced by
+ * `PhotoPicker` / `compressImageToDataUrl`, so it's guaranteed to fit both
+ * the Firestore document limit and the `url.size()` cap in the rules.
+ */
 export async function addPlantPhoto(
   userId: string,
   plantId: string,
-  file: File,
+  dataUrl: string,
   note?: string
 ): Promise<Photo> {
-  const compressed = await compressPlantPhoto(file);
-  const url = await fileToBase64(compressed);
-
   return photosRepository.create(userId, {
     userId,
     plantId,
-    url,
+    url: dataUrl,
     note,
     createdAt: new Date(),
   });

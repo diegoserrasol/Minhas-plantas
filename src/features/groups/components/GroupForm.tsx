@@ -8,9 +8,11 @@ import { z } from "zod";
 import { useToast } from "@/components/feedback/ToastProvider";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { PhotoPicker } from "@/components/ui/PhotoPicker";
 import { Textarea } from "@/components/ui/Textarea";
 import { createGroup, updateGroup } from "@/features/groups/useCases/groupUseCases";
 import { useAuth } from "@/hooks/useAuth";
+import { describeError } from "@/lib/errors";
 import type { Group } from "@/types/entities";
 
 const schema = z.object({
@@ -25,6 +27,9 @@ export function GroupForm({ group }: { group?: Group }) {
   const { showToast } = useToast();
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
+  const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | undefined>(
+    group?.coverPhotoUrl
+  );
 
   const {
     register,
@@ -45,6 +50,7 @@ export function GroupForm({ group }: { group?: Group }) {
       const cleaned = {
         name: values.name,
         description: values.description || undefined,
+        coverPhotoUrl,
       };
 
       if (group) {
@@ -56,6 +62,8 @@ export function GroupForm({ group }: { group?: Group }) {
         showToast("Grupo criado 🌱");
         router.push(`/grupos/${created.id}`);
       }
+    } catch (error) {
+      showToast(describeError(error, "Não foi possível salvar o grupo."), "error");
     } finally {
       setSubmitting(false);
     }
@@ -63,6 +71,12 @@ export function GroupForm({ group }: { group?: Group }) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
+      <PhotoPicker
+        value={coverPhotoUrl}
+        onChange={setCoverPhotoUrl}
+        label="Foto de capa (opcional)"
+        disabled={submitting}
+      />
       <Input
         label="Nome"
         placeholder="Ex: Suculentas"

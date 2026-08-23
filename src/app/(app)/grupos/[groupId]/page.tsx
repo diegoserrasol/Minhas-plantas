@@ -15,6 +15,7 @@ import { ApplicationForm } from "@/features/applications/components/ApplicationF
 import { GroupMembersPicker } from "@/features/groups/components/GroupMembersPicker";
 import { deleteGroup } from "@/features/groups/useCases/groupUseCases";
 import { PlantCard } from "@/features/plants/components/PlantCard";
+import { PlantPhoto } from "@/features/plants/components/PlantPhoto";
 import { useAuth } from "@/hooks/useAuth";
 import { useGroup } from "@/hooks/useGroups";
 import { usePlantsWithCareStatus } from "@/hooks/usePlantsWithCareStatus";
@@ -56,9 +57,17 @@ export default function GroupDetailPage({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="font-serif text-2xl text-stone-900">{group.name}</h1>
-          {group.description && <p className="text-sm text-stone-500">{group.description}</p>}
+        <div className="flex min-w-0 items-start gap-3">
+          <PlantPhoto
+            src={group.coverPhotoUrl}
+            alt={group.name}
+            className="size-14 shrink-0 rounded-lg"
+            sizes="56px"
+          />
+          <div className="min-w-0">
+            <h1 className="font-serif text-2xl text-stone-900">{group.name}</h1>
+            {group.description && <p className="text-sm text-stone-500">{group.description}</p>}
+          </div>
         </div>
         <div className="flex shrink-0 gap-1">
           <Link href={`/grupos/${groupId}/editar`}>

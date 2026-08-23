@@ -1,25 +1,20 @@
-import { compressPlantPhoto, fileToBase64 } from "@/lib/imageCompression";
 import { cyclesRepository } from "@/services/firebase/firestore/cyclesRepository";
 import { photosRepository } from "@/services/firebase/firestore/photosRepository";
 import { plantsRepository } from "@/services/firebase/firestore/plantsRepository";
 import type { Plant } from "@/types/entities";
 
-export type CreatePlantInput = Omit<
-  Plant,
-  "id" | "createdAt" | "updatedAt" | "coverPhotoUrl"
-> & { coverPhotoFile?: File };
+/**
+ * `coverPhotoUrl` arrives already compressed from `PhotoPicker` — the
+ * compression step used to live here, which meant a form could hand over a
+ * File whose compressed size only became known (and only blew up) mid-write.
+ */
+export type CreatePlantInput = Omit<Plant, "id" | "createdAt" | "updatedAt">;
 
 export async function createPlant(input: CreatePlantInput): Promise<Plant> {
-  const { coverPhotoFile, ...rest } = input;
   const now = new Date();
 
-  const coverPhotoUrl = coverPhotoFile
-    ? await fileToBase64(await compressPlantPhoto(coverPhotoFile))
-    : undefined;
-
   return plantsRepository.create(input.userId, {
-    ...rest,
-    coverPhotoUrl,
+    ...input,
     createdAt: now,
     updatedAt: now,
   });

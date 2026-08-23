@@ -14,6 +14,7 @@ import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { registerApplication } from "@/features/applications/useCases/registerApplication";
 import { useAuth } from "@/hooks/useAuth";
+import { describeError } from "@/lib/errors";
 import { useCyclesForGroup, useCyclesForPlant } from "@/hooks/useCycles";
 import { useGroups } from "@/hooks/useGroups";
 import { usePlants } from "@/hooks/usePlants";
@@ -134,6 +135,11 @@ export function ApplicationForm({
         values.targetType === "plant"
           ? `/plantas/${values.targetId}`
           : `/grupos/${values.targetId}`
+      );
+    } catch (error) {
+      showToast(
+        describeError(error, "Não foi possível registrar a aplicação."),
+        "error"
       );
     } finally {
       setSubmitting(false);

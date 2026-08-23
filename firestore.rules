@@ -22,9 +22,23 @@ service cloud.firestore {
 
     // Cover photos are base64 data URIs inline on the document — same
     // 1 MiB Firestore document cap as standalone photos applies here.
+    // The `is string` guard matters: calling size() on a null or numeric
+    // field aborts rule evaluation and shows up as permission-denied.
     function hasValidCoverPhoto() {
       return !('coverPhotoUrl' in request.resource.data)
-        || request.resource.data.coverPhotoUrl.size() < 900000;
+        || (request.resource.data.coverPhotoUrl is string
+            && request.resource.data.coverPhotoUrl.size() < 900000);
+    }
+
+    // On update, request.resource.data is the *merged* document, so an
+    // oversized cover written by an older client would fail this check on
+    // every later write — permanently blocking unrelated edits such as
+    // linking the plant to a group. Only validate a cover that's actually
+    // changing.
+    function coverPhotoWriteOk() {
+      return hasValidCoverPhoto()
+        || request.resource.data.get('coverPhotoUrl', '')
+             == resource.data.get('coverPhotoUrl', '');
     }
 
     function exactlyOneTarget() {
@@ -52,7 +66,7 @@ service cloud.firestore {
         allow create: if isOwner(uid) && ownerMatchesBody(uid) && hasNonEmptyName()
           && hasValidCoverPhoto();
         allow update: if isOwner(uid) && request.resource.data.userId == uid
-          && hasValidCoverPhoto();
+          && coverPhotoWriteOk();
       }
 
       match /groups/{groupId} {
@@ -60,7 +74,7 @@ service cloud.firestore {
         allow create: if isOwner(uid) && ownerMatchesBody(uid) && hasNonEmptyName()
           && hasValidCoverPhoto();
         allow update: if isOwner(uid) && request.resource.data.userId == uid
-          && hasValidCoverPhoto();
+          && coverPhotoWriteOk();
       }
 
       match /products/{productId} {

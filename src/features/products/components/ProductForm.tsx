@@ -15,6 +15,7 @@ import {
   updateProduct,
 } from "@/features/products/useCases/productUseCases";
 import { useAuth } from "@/hooks/useAuth";
+import { describeError } from "@/lib/errors";
 import type { Product } from "@/types/entities";
 
 const schema = z.object({
@@ -72,6 +73,8 @@ export function ProductForm({ product }: { product?: Product }) {
         showToast("Produto adicionado 🌱");
       }
       router.push("/produtos");
+    } catch (error) {
+      showToast(describeError(error, "Não foi possível salvar o produto."), "error");
     } finally {
       setSubmitting(false);
     }

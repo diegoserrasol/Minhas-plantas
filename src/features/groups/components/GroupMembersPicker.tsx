@@ -4,6 +4,7 @@ import { Check } from "lucide-react";
 import { useState } from "react";
 import { ResponsiveDialog } from "@/components/ui/ResponsiveDialog";
 import { Button } from "@/components/ui/Button";
+import { useToast } from "@/components/feedback/ToastProvider";
 import {
   addPlantToGroup,
   removePlantFromGroup,
@@ -11,6 +12,7 @@ import {
 import { PlantPhoto } from "@/features/plants/components/PlantPhoto";
 import { useAuth } from "@/hooks/useAuth";
 import { usePlants } from "@/hooks/usePlants";
+import { describeError } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 
 export function GroupMembersPicker({
@@ -23,7 +25,8 @@ export function GroupMembersPicker({
   onChange: () => void;
 }) {
   const { user } = useAuth();
-  const { data: allPlants } = usePlants();
+  const { showToast } = useToast();
+  const { data: allPlants, refetch: refetchPlants } = usePlants();
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState<string | null>(null);
 
@@ -36,7 +39,15 @@ export function GroupMembersPicker({
       } else {
         await addPlantToGroup(user.uid, plantId, groupId);
       }
+      // The picker keeps its own copy of the plant list, so it has to
+      // refetch too — otherwise reopening the sheet shows stale groupIds.
+      refetchPlants();
       onChange();
+    } catch (error) {
+      showToast(
+        describeError(error, "Não foi possível atualizar o grupo da planta."),
+        "error"
+      );
     } finally {
       setPending(null);
     }
